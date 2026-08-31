@@ -1,3 +1,13 @@
+
+input_videos/
+output_videos/*
+!output_videos/.gitkeep
+tracker_stubs/*
+!tracker_stubs/.gitkeep
+models/*
+!models/.gitkeep
+runs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
