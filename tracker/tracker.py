@@ -1,6 +1,8 @@
 from ultralytics import YOLO
 import supervision as sv
 import cv2
+import os
+import pickle
 
 class Tracker:
     def __init__(self, model_path):
@@ -15,11 +17,21 @@ class Tracker:
             batch = frames[i: i+batch_size]
             result = self.model.predict(batch, stream=True)
             detections.extend(result)
-            break
 
         return detections
 
-    def get_object_tracks(self, frames):
+    def get_object_tracks(
+            self,
+            frames,
+            read_from_stub=False,
+            stub_path=None
+        ):
+        # check if read from saved stubs or not
+        if read_from_stub and stub_path and os.path.exists(stub_path):
+            with open(stub_path, 'rb') as f:
+                tracks = pickle.load(f)
+            return tracks
+        
         detections = self.detect_frames(frames)
 
         """
@@ -74,6 +86,10 @@ class Tracker:
 
                 if cls_id == names_to_idx['ball']:
                     tracks["ball"][frame_num][1] = {"bbox":bbox}
+
+        if stub_path:
+            with open(stub_path, 'wb') as f:
+                pickle.dump(tracks, f)
 
         return tracks
 
