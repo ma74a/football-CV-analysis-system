@@ -3,22 +3,23 @@ import supervision as sv
 import cv2
 import os
 import pickle
+import numpy as np
+
+from utils import (
+    get_bbox_width,
+    get_bbox_conter
+)
 
 class Tracker:
     def __init__(self, model_path):
         self.model = YOLO(model=model_path)
         self.tracker = sv.ByteTrack()
 
-    def detect_frames(self, frames):
-        detections = []
-        batch_size = 20
-        # detect with batches of frames not frame by frame
+    def detect_frames(self, frames, batch_size=20):
         for i in range(0, len(frames), batch_size):
-            batch = frames[i: i+batch_size]
-            result = self.model.predict(batch, stream=True)
-            detections.extend(result)
-
-        return detections
+            batch = frames[i: i + batch_size]
+            results = self.model.predict(batch, stream=True, verbose=False)
+            yield from results  # don't accumulate
 
     def get_object_tracks(
             self,
@@ -93,3 +94,102 @@ class Tracker:
 
         return tracks
 
+    def draw_ellipse(
+        self,
+        frame,
+        bbox,
+        color,
+        track_id=None
+    ):
+        y2 = int(bbox[3])
+        x_center, _ = get_bbox_conter(bbox)
+        bbox_width = get_bbox_width(bbox)
+
+        cv2.ellipse(
+            img=frame,
+            center=(x_center, y2),
+            axes=(int(bbox_width / 2), 8),  # half-width matches player width, small height for flat look
+            angle=0,
+            startAngle=-45,
+            endAngle=235,
+            color=color,
+            thickness=2,
+            lineType=cv2.LINE_4
+        )
+
+        # Draw rectangle + track ID inside the ellipse
+        rect_width = 40
+        rect_height = 20
+        x1_rect = x_center - rect_width // 2
+        x2_rect = x_center + rect_width // 2
+        y1_rect = y2 - rect_height // 2 + 15
+        y2_rect = y2 + rect_height // 2 + 15
+
+        if track_id is not None:
+            cv2.rectangle(
+                img=frame,
+                pt1=(x1_rect, y1_rect),
+                pt2=(x2_rect, y2_rect),
+                color=color,
+                thickness=cv2.FILLED
+            )
+            # x1_text = x1_rect+12
+            # if track_id > 99:
+            #     x1_text -=10
+
+            cv2.putText(
+                img=frame,
+                text=str(track_id),
+                org=(x1_rect + 8, y2_rect - 5),      # slight padding inside rect
+                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale=0.5,
+                color=(255, 255, 255),               # white text on colored rect
+                thickness=2
+            )
+
+        return frame
+
+    """
+    [x_center - 10, y1 - 15]●-----------● [x_center + 10, y1 - 15]
+                             \         /
+                              \       /
+                               \     /
+                                \   /
+                                 \ /
+                                  ● [x_center, y1]   ← tip
+    """
+    def draw_triangle(self, frame, bbox, color):
+        x_center, _ = get_bbox_conter(bbox)
+        y1 = bbox[1] # top y
+
+        triangle_points = np.array([
+        [x_center - 10, y1 - 15],   # base left  (top)
+        [x_center + 10, y1 - 15],   # base right (top)
+        [x_center,      y1],        # tip pointing DOWN toward ball ← flip this
+        ], dtype=np.int32)
+
+        cv2.drawContours(frame, [triangle_points],0,color, cv2.FILLED)
+        cv2.drawContours(frame, [triangle_points],0,(0,0,0), 2) # like the boarder
+
+        return frame
+
+    def draw_annotations(self, frame, tracks, frame_num):
+        frame = frame.copy()
+        player_dict = tracks["players"][frame_num]
+        referee_dict = tracks["referees"][frame_num]
+        ball_dict = tracks["ball"][frame_num]
+
+        # draw player
+        for track_id, bboxs in player_dict.items():
+            frame = self.draw_ellipse(frame, bboxs["bbox"], [255, 0, 0], track_id)
+
+        # draw referee
+        for _, bboxs in referee_dict.items():
+                    frame = self.draw_ellipse(frame, bboxs["bbox"], [0, 225, 255])
+
+        # draw ball triangle
+        for _, bbox in ball_dict.items():
+            frame = self.draw_triangle(frame, bbox["bbox"], [0, 255, 0])
+            
+
+        return frame
