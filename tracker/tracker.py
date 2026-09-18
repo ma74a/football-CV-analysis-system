@@ -4,6 +4,7 @@ import cv2
 import os
 import pickle
 import numpy as np
+import pandas as pd
 
 from utils import (
     get_bbox_width,
@@ -14,6 +15,53 @@ class Tracker:
     def __init__(self, model_path):
         self.model = YOLO(model=model_path)
         self.tracker = sv.ByteTrack()
+
+    def interpolate_ball_detection(self, ball_positions):
+        """
+        # input — ball missing in frames 2,3,4
+        ball_positions = [
+            {1: {"bbox": [100, 200, 110, 210]}},  # frame 0 ✅
+            {1: {"bbox": [120, 205, 130, 215]}},  # frame 1 ✅
+            {},                                    # frame 2 ❌ missed
+            {},                                    # frame 3 ❌ missed
+            {1: {"bbox": [180, 220, 190, 230]}},  # frame 4 ✅
+        ]
+
+        # step 1 — extract bboxes
+        [
+        [100, 200, 110, 210],  # frame 0
+        [120, 205, 130, 215],  # frame 1
+        [],                    # frame 2 → becomes NaN
+        [],                    # frame 3 → becomes NaN
+        [180, 220, 190, 230],  # frame 4
+        ]
+        step 2 — after interpolate()
+        frame 2 → [140, 210, 150, 220]  ← linearly interpolated
+        frame 3 → [160, 215, 170, 225]  ← linearly interpolated
+        """
+        # ball_positions = list of dicts, one per frame
+        # [{1: {"bbox": [...]}}, {}, {1: {"bbox": [...]}}, ...]
+        #                         ↑ empty = ball not detected this frame
+
+        # extract bbox or None for each frame
+        ball_positions = [x.get(1, {}).get("bbox", []) for x in ball_positions]
+
+        # convert to dataframe
+        df = pd.DataFrame(ball_positions, columns=["x1", "y1", "x2", "y2"])
+
+        # replace empty lists with NaN so pandas can interpolate
+        df = df.replace({None: pd.NA})
+
+        # interpolate missing values linearly
+        df = df.interpolate()
+
+        # fill any remaining NaN at start/end (interpolate won't fill edges)
+        df = df.bfill().ffill()
+
+        # convert back to original format
+        ball_positions = [{1: {"bbox": x}} for x in df.to_numpy().tolist()]
+
+        return ball_positions
 
     def detect_frames(self, frames, batch_size=20):
         for i in range(0, len(frames), batch_size):
@@ -143,7 +191,7 @@ class Tracker:
                 org=(x1_rect + 8, y2_rect - 5),      # slight padding inside rect
                 fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                 fontScale=0.5,
-                color=(255, 255, 255),               # white text on colored rect
+                color=(0, 0, 0),               # white text on colored rect
                 thickness=2
             )
 
@@ -180,8 +228,9 @@ class Tracker:
         ball_dict = tracks["ball"][frame_num]
 
         # draw player
-        for track_id, bboxs in player_dict.items():
-            frame = self.draw_ellipse(frame, bboxs["bbox"], [255, 0, 0], track_id)
+        for track_id, player in player_dict.items():
+            color = player.get("team_color", [0, 0, 255])
+            frame = self.draw_ellipse(frame, player["bbox"], color, track_id)
 
         # draw referee
         for _, bboxs in referee_dict.items():
