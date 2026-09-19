@@ -2,15 +2,13 @@ import cv2
 import os
 
 def read_video(video_path):
-    frames = []
     cap = cv2.VideoCapture(video_path)
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-        frames.append(frame)
-
-    return frames # list[numpy.ndarray]
+        yield frame  # one frame at a time, not all at once
+    cap.release()
 
 
 def save_video(frames, output_path="output_videos/"):
