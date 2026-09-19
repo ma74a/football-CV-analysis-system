@@ -35,6 +35,7 @@ class Tracker:
         [],                    # frame 3 → becomes NaN
         [180, 220, 190, 230],  # frame 4
         ]
+        
         step 2 — after interpolate()
         frame 2 → [140, 210, 150, 220]  ← linearly interpolated
         frame 3 → [160, 215, 170, 225]  ← linearly interpolated
@@ -231,6 +232,8 @@ class Tracker:
         for track_id, player in player_dict.items():
             color = player.get("team_color", [0, 0, 255])
             frame = self.draw_ellipse(frame, player["bbox"], color, track_id)
+            if player.get("has_ball", False):
+                frame = self.draw_triangle(frame, player["bbox"], [0, 0, 255])
 
         # draw referee
         for _, bboxs in referee_dict.items():
