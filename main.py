@@ -6,6 +6,7 @@ from utils import (
 )
 from tracker import Tracker
 from team_assigner import TeamAssign
+from player_ball_assigner import PlayerBallAssigner
 
 def main():
     video_frames = list(read_video("input_videos/08fd33_4.mp4"))
@@ -26,6 +27,17 @@ def main():
         "team_color": [255, 255, 255]   # ← added
     }
     """
+
+    playerball_assigner = PlayerBallAssigner()
+
+    for frame_num, player in enumerate(tracks["players"]):
+        ball_bbox = tracks["ball"][frame_num][1]["bbox"]
+        assigned_player = playerball_assigner.assign_ball_to_player(
+            player_dict=player,
+            ball_bbox=ball_bbox
+        )
+        if assigned_player != -1:
+            tracks["players"][frame_num][assigned_player]["has_ball"] = True
 
     team_assigner = TeamAssign()
     team_assigner.assign_team_color(video_frames[0], tracks["players"][0])
