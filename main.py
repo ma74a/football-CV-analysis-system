@@ -7,10 +7,11 @@ from utils import (
 from tracker import Tracker
 from team_assigner import TeamAssign
 from player_ball_assigner import PlayerBallAssigner
+from camera_movement_estimator import CameraMovementEstimator
 
 def main():
     video_frames = list(read_video("input_videos/08fd33_4.mp4"))
-    cap = cv2.VideoCapture("input_videos/08fd33_4.mp4")
+    # cap = cv2.VideoCapture("input_videos/08fd33_4.mp4")
     tracker = Tracker(model_path="models/best.pt")
 
     # get tracks from stub or detect
@@ -19,6 +20,14 @@ def main():
         read_from_stub=True,
         stub_path="stubs/track_stubs.pkl"
     )
+    # camera movement estimator
+    camera_estimator = CameraMovementEstimator(frame=video_frames[0])
+    camera_movement_per_frame = camera_estimator.get_camera_movement(
+        frames=video_frames,
+        read_from_stubs=True,
+        stub_path="stubs/camera_movements_stub.pkl"
+    )
+
     tracks["ball"] = tracker.interpolate_ball_detection(tracks["ball"])
     """
     tracks["players"][frame_num][track_id] = {
@@ -27,6 +36,8 @@ def main():
         "team_color": [255, 255, 255]   # ← added
     }
     """
+
+
 
     playerball_assigner = PlayerBallAssigner()
 
@@ -72,14 +83,14 @@ def main():
             break
 
         frame = tracker.draw_annotations(frame, tracks, frame_num)
+        frame = camera_estimator.draw_camera_movement_single_frame(
+            frame, camera_movement_per_frame[frame_num]
+        )
         out.write(frame)   # write immediately, don't store
         frame_num += 1
 
     cap2.release()
     out.release()
-
-
-
 
 
 if __name__ == "__main__":
