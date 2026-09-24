@@ -123,3 +123,18 @@ class CameraMovementEstimator:
 
         return camera_movements
 
+
+
+    def draw_camera_movement_single_frame(self, frame, movement):
+        frame = frame.copy()
+        x_movement, y_movement = movement
+
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (0, 0), (500, 100), (255, 255, 255), -1)
+        cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+
+        cv2.putText(frame, f"Camera Movement X: {x_movement:.2f}", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3)
+        cv2.putText(frame, f"Camera Movement Y: {y_movement:.2f}", (10, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3)
+        return frame
