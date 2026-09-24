@@ -7,6 +7,8 @@ tracker_stubs/*
 models/*
 !models/.gitkeep
 runs/
+tests/
+stubs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
