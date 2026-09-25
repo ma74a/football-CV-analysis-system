@@ -3,5 +3,6 @@ from .bbox_utils import (
     get_bbox_conter,
     get_bbox_width,
     measure_distance,
-    measure_xy_distance
+    measure_xy_distance,
+    get_foot_position
 )
