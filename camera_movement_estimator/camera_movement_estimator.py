@@ -37,6 +37,17 @@ class CameraMovementEstimator:
             mask=mask_features
         )
 
+    def add_adjust_positions_to_tracks(self, tracks, camera_movements):
+        """add adjusted position we get from postion and camera movement to tracks"""
+        for object, object_info in tracks.items():
+            for frame_num, track_object in enumerate(object_info):
+                for track_id, track_info in track_object.items():
+                    position = track_info["position"]
+                    camera_movement_for_frame = camera_movements[frame_num]
+                    adjusted_position = (position[0]-camera_movement_for_frame[0], position[1], camera_movement_for_frame[1])
+
+                    tracks[object][frame_num][track_id]["adjusted_position"] = adjusted_position
+
     def get_camera_movement(
         self,
         frames,
