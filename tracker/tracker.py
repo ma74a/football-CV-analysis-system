@@ -8,13 +8,30 @@ import pandas as pd
 
 from utils import (
     get_bbox_width,
-    get_bbox_conter
+    get_bbox_conter,
+    get_foot_position
 )
 
 class Tracker:
     def __init__(self, model_path):
         self.model = YOLO(model=model_path)
         self.tracker = sv.ByteTrack()
+
+    def add_position_to_tracks(self, tracks):
+        """add position of ball or player or referee to the tracks"""
+        for object, object_tracks in tracks.items():
+            for frame_num, track in enumerate(object_tracks):
+                for track_id, track_info in track.items():
+                    bbox = track_info["bbox"]
+                    # if the object is ball 
+                    # get the center of it
+                    if object == "ball":
+                        position = get_bbox_conter(bbox)
+                    # if otherwise get the foot position
+                    else:
+                        position = get_foot_position(bbox)
+
+                    tracks[object][frame_num][track_id]["position"] = position
 
     def interpolate_ball_detection(self, ball_positions):
         """
